@@ -45,7 +45,7 @@ services:
       MAGENTO_LOCALES: en_US es_ES es_CO
       MAGENTO_OPENSEARCH_HOST: opensearch
       MAGENTO_OPENSEARCH_PORT: 9200
-    command: ["/bin/bash", "/app/docker/init-magento.sh"]
+    command: ["/bin/bash", "/app/init-magento.sh"]
     depends_on:
       db:
         condition: service_healthy

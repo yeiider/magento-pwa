@@ -34,4 +34,4 @@
 !.github/workflows
 !.github/workflows/**
 !docker-compose.portainer.yml
-!/docker/*/
+!/init-magento.sh
