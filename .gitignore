@@ -35,3 +35,4 @@
 !.github/workflows/**
 !docker-compose.yml
 !/init-magento.sh
+!Dockerfile
