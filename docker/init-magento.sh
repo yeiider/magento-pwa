@@ -12,19 +12,27 @@ echo -e "${GREEN}Iniciando proceso de configuración de Magento...${NC}"
 
 # Función para ejecutar comandos como el usuario application
 run_as_app() {
-  sudo -u application php "$@"
+  sudo -u application php -d memory_limit=4G "$@"
 }
 
 # 1. Verificar si vendor o bin/magento existen. Si no, correr composer install.
 if [ ! -f "bin/magento" ]; then
-  echo -e "${GREEN}Magento no encontrado (bin/magento ausente). Instalando dependencias con Composer...${NC}"
-  # Ejecutar como usuario application para evitar problemas de permisos
-  sudo -u application composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader
+  echo -e "${GREEN}Magento no encontrado. Optimizando e instalando con Composer...${NC}"
+  # Configurar composer para descargas rápidas en paralelo
+  sudo -u application composer config -g parallelism 20 || true
+  
+  # Instalar dependencias con límites de memoria aumentados y sin progreso para ahorrar I/O
+  sudo -u application COMPOSER_MEMORY_LIMIT=-1 composer install \
+    --no-interaction \
+    --no-dev \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-progress
 else
   echo -e "${GREEN}Dependencias de Composer ya presentes.${NC}"
 fi
 
-# 2. Esperar servicios (DB, Redis, etc)
+# 2. Esperar servicios
 wait_for_port() {
   local host="$1"
   local port="$2"
@@ -38,7 +46,7 @@ wait_for_port() {
   done
 }
 
-wait_for_port "${MAGENTO_DB_HOST:-db}" 3306 "MariaDB/MySQL"
+wait_for_port "${MAGENTO_DB_HOST:-db}" 3306 "MySQL"
 wait_for_port "redis" 6379 "Redis"
 wait_for_port "rabbitmq" 5672 "RabbitMQ"
 wait_for_port "${MAGENTO_OPENSEARCH_HOST:-opensearch}" "${MAGENTO_OPENSEARCH_PORT:-9200}" "OpenSearch"
@@ -50,9 +58,9 @@ chown -R application:application var generated pub/static pub/media vendor bin
 chmod -R 777 var generated pub/static pub/media
 
 # 4. Instalación o Upgrade
-if ! run_as_app bin/magento setup:db:status >/dev/null 2>&1; then
+if [ ! -f "app/etc/env.php" ]; then
   echo -e "${GREEN}Ejecutando setup:install...${NC}"
-  run_as_app -d memory_limit=2G bin/magento setup:install \
+  run_as_app bin/magento setup:install \
     --base-url="${MAGENTO_BASE_URL}" \
     --db-host="${MAGENTO_DB_HOST}" \
     --db-name="${MYSQL_DATABASE}" \
@@ -79,16 +87,16 @@ if ! run_as_app bin/magento setup:db:status >/dev/null 2>&1; then
     --cleanup-database
 else
   echo -e "${GREEN}Magento ya instalado. Ejecutando setup:upgrade...${NC}"
-  run_as_app -d memory_limit=2G bin/magento setup:upgrade
+  run_as_app bin/magento setup:upgrade
 fi
 
 # 5. Pasos finales
 echo -e "${GREEN}Compilando código y desplegando contenido estático...${NC}"
-run_as_app -d memory_limit=2G bin/magento setup:di:compile
-run_as_app -d memory_limit=2G bin/magento setup:static-content:deploy -f ${MAGENTO_LOCALES}
+run_as_app bin/magento setup:di:compile
+run_as_app bin/magento setup:static-content:deploy -f ${MAGENTO_LOCALES}
 run_as_app bin/magento cron:install
-run_as_app -d memory_limit=2G bin/magento indexer:reindex
-run_as_app -d memory_limit=2G bin/magento cache:flush
+run_as_app bin/magento indexer:reindex
+run_as_app bin/magento cache:flush
 
 chown -R application:application var generated pub/static pub/media
 echo -e "${GREEN}¡Inicialización de Magento finalizada con éxito!${NC}"

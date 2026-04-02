@@ -38,6 +38,7 @@ services:
       - magento_generated:/app/generated
       - magento_static:/app/pub/static
       - magento_media:/app/pub/media
+      - composer_cache:/home/application/.composer/cache
     environment:
       MAGENTO_BASE_URL: ${MAGENTO_BASE_URL:-http://localhost:8088/}
       MAGENTO_ADMIN_FIRSTNAME: ${MAGENTO_ADMIN_FIRSTNAME:-Admin}
@@ -172,6 +173,7 @@ volumes:
   magento_generated:
   magento_static:
   magento_media:
+  composer_cache:
 
 networks:
   public:
