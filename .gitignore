@@ -30,6 +30,14 @@
 !/.github/workflows/frontend-ci.yml
 !/pub
 !/pub/*/
+!/setup/
+!/setup/**
+!/bin/
+!/bin/**
+!/lib/
+!/lib/**
+!/dev/
+!/dev/**
 !.github
 !.github/workflows
 !.github/workflows/**
