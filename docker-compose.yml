@@ -30,6 +30,7 @@ services:
       - internal
 
   magento-setup:
+    build: .
     image: magento-custom:latest
     container_name: magento-setup
     restart: "no"
@@ -73,6 +74,7 @@ services:
       - internal
 
   cron:
+    build: .
     image: magento-custom:latest
     container_name: magento-cron
     restart: unless-stopped
