@@ -37,3 +37,5 @@
 !/init-magento.sh
 !Dockerfile
 !.dockerignore
+!/docker/
+!/docker/**
