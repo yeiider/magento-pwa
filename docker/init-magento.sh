@@ -14,21 +14,27 @@ run_as_app() {
   sudo -u application php -d memory_limit=4G "$@"
 }
 
-# 1. Sincronizar código si el volumen está vacío
-if [ ! -f "composer.json" ]; then
-  echo -e "${GREEN}El volumen /app está vacío. Sincronizando código desde /app_source...${NC}"
-  rsync -a /app_source/ /app/
-  chown -R application:application /app
-  echo -e "${GREEN}Sincronización completa.${NC}"
-fi
+# 1. Sincronización Inteligente (Prioridad GIT)
+# Sincronizamos todo desde /app_source (la imagen con el nuevo Git) hacia /app (el volumen)
+# EXCLUIMOS las carpetas persistentes/generadas para no borrarlas ni pisarlas.
+echo -e "${GREEN}Sincronizando cambios de Git con el volumen...${NC}"
+rsync -a --delete \
+  --exclude='/var/' \
+  --exclude='/generated/' \
+  --exclude='/pub/static/' \
+  --exclude='/pub/media/' \
+  --exclude='/vendor/' \
+  /app_source/ /app/
 
-# 2. Verificar dependencias
-if [ ! -d "vendor" ] || [ -z "$(ls -A vendor 2>/dev/null)" ]; then
-  echo -e "${GREEN}Instalando dependencias con Composer...${NC}"
-  sudo -u application composer config -g parallelism 20 || true
-  sudo -u application COMPOSER_MEMORY_LIMIT=-1 composer install \
+chown -R application:application /app
+echo -e "${GREEN}Sincronización completa.${NC}"
+
+# 2. Gestión de Dependencias (Composer)
+# Siempre intentamos composer install; si no hay cambios en composer.lock, tardará segundos.
+echo -e "${GREEN}Verificando dependencias de Composer...${NC}"
+sudo -u application composer config -g parallelism 20 || true
+sudo -u application COMPOSER_MEMORY_LIMIT=-1 composer install \
     --no-interaction --no-dev --prefer-dist --optimize-autoloader --no-progress
-fi
 
 # 3. Esperar servicios
 wait_for_port() {
@@ -52,7 +58,7 @@ wait_for_port "${MAGENTO_OPENSEARCH_HOST:-opensearch}" "${MAGENTO_OPENSEARCH_POR
 # 4. Ajustar permisos
 echo "Ajustando permisos..."
 mkdir -p var generated pub/static pub/media vendor
-chown -R application:application /app
+chown -R application:application var generated pub/static pub/media vendor
 chmod -R 777 var generated pub/static pub/media
 
 # 5. Instalación o Upgrade
@@ -87,7 +93,7 @@ if [ ! -f "app/etc/env.php" ]; then
     --amqp-virtualhost="${RABBITMQ_DEFAULT_VHOST}" \
     --cleanup-database
 else
-  echo -e "${GREEN}Magento ya instalado. Actualizando configuración de URL...${NC}"
+  echo -e "${GREEN}Magento ya instalado. Aplicando cambios de configuración...${NC}"
   run_as_app bin/magento config:set web/unsecure/base_url "${MAGENTO_BASE_URL}"
   run_as_app bin/magento config:set web/secure/base_url "${MAGENTO_BASE_URL}"
   run_as_app bin/magento config:set web/secure/use_in_frontend 1
@@ -103,5 +109,5 @@ run_as_app bin/magento cron:install
 run_as_app bin/magento indexer:reindex
 run_as_app bin/magento cache:flush
 
-chown -R application:application /app
+chown -R application:application var generated pub/static pub/media
 echo -e "${GREEN}¡Inicialización de Magento finalizada con éxito!${NC}"
