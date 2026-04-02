@@ -7,6 +7,8 @@ services:
     ports:
       - "8088:80"
     volumes:
+      - magento_bin:/app/bin
+      - magento_vendor:/app/vendor
       - magento_var:/app/var
       - magento_generated:/app/generated
       - magento_static:/app/pub/static
@@ -34,6 +36,8 @@ services:
     container_name: magento-setup
     restart: "no"
     volumes:
+      - magento_bin:/app/bin
+      - magento_vendor:/app/vendor
       - magento_var:/app/var
       - magento_generated:/app/generated
       - magento_static:/app/pub/static
@@ -79,6 +83,8 @@ services:
     container_name: magento-cron
     restart: unless-stopped
     volumes:
+      - magento_bin:/app/bin
+      - magento_vendor:/app/vendor
       - magento_var:/app/var
       - magento_generated:/app/generated
       - magento_static:/app/pub/static
@@ -170,6 +176,8 @@ volumes:
   redis_data:
   rabbitmq_data:
   opensearch_data:
+  magento_bin:
+  magento_vendor:
   magento_var:
   magento_generated:
   magento_static:
