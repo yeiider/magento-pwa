@@ -22,12 +22,15 @@ if [ ! -f "composer.json" ]; then
   echo -e "${GREEN}Sincronización completa.${NC}"
 fi
 
-# 2. Verificar si bin/magento existe. Si no, correr composer install.
-if [ ! -f "bin/magento" ]; then
-  echo -e "${GREEN}Instalando dependencias con Composer...${NC}"
+# 2. Verificar si existe la carpeta vendor/ y tiene contenido. Si no, correr composer install.
+# (Es más seguro que verificar solo bin/magento, ya que bin/magento puede estar en el Git)
+if [ ! -d "vendor" ] || [ -z "$(ls -A vendor 2>/dev/null)" ]; then
+  echo -e "${GREEN}Vendor no encontrado o vacío. Instalando dependencias con Composer...${NC}"
   sudo -u application composer config -g parallelism 20 || true
   sudo -u application COMPOSER_MEMORY_LIMIT=-1 composer install \
     --no-interaction --no-dev --prefer-dist --optimize-autoloader --no-progress
+else
+  echo -e "${GREEN}Dependencias de Composer ya presentes en vendor/.${NC}"
 fi
 
 # 3. Esperar servicios
@@ -56,6 +59,12 @@ chown -R application:application /app
 chmod -R 777 var generated pub/static pub/media
 
 # 5. Instalación o Upgrade
+# Si el binario de magento no existe todavía (raro pero posible), algo falló en composer
+if [ ! -f "bin/magento" ]; then
+    echo -e "${GREEN}ERROR: bin/magento no encontrado tras composer install. Reintentando...${NC}"
+    sudo -u application composer install --no-interaction
+fi
+
 if [ ! -f "app/etc/env.php" ]; then
   echo -e "${GREEN}Ejecutando setup:install...${NC}"
   run_as_app bin/magento setup:install \
