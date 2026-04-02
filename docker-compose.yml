@@ -25,6 +25,7 @@ services:
     networks:
       - public
       - internal
+      - proxy_network
 
   magento-setup:
     build: .
@@ -173,3 +174,5 @@ networks:
   internal:
     driver: bridge
     internal: true
+  proxy_network:
+    external: true
