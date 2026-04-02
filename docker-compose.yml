@@ -1,0 +1,149 @@
+services:
+  app:
+    image: webdevops/php-apache:8.3
+    container_name: magento-app
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    volumes:
+      - ./:/app:rw,cached
+    environment:
+      WEB_DOCUMENT_ROOT: /app/pub
+      PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-2G}
+      PHP_MAX_EXECUTION_TIME: ${PHP_MAX_EXECUTION_TIME:-1800}
+      PHP_POST_MAX_SIZE: ${PHP_POST_MAX_SIZE:-64M}
+      PHP_UPLOAD_MAX_FILESIZE: ${PHP_UPLOAD_MAX_FILESIZE:-64M}
+      MAGENTO_BASE_URL: ${MAGENTO_BASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
+    networks:
+      - public
+      - internal
+
+  magento-setup:
+    image: webdevops/php-apache:8.3
+    container_name: magento-setup
+    restart: "no"
+    volumes:
+      - ./:/app:rw,cached
+    env_file: .env
+    environment:
+      MAGENTO_DB_HOST: ${MAGENTO_DB_HOST}
+    entrypoint: ["/bin/bash", "/app/docker/init-magento.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
+    networks:
+      - internal
+
+  cron:
+    image: webdevops/php-apache:8.3
+    container_name: magento-cron
+    restart: unless-stopped
+    volumes:
+      - ./:/app:rw,cached
+    command: cron -f
+    environment:
+      WEB_DOCUMENT_ROOT: /app/pub
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - internal
+
+  db:
+    image: mysql:8.0
+    container_name: magento-db
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password --log-bin-trust-function-creators=1
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${MYSQL_USER} -p${MYSQL_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: magento-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: magento-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - internal
+
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    container_name: magento-opensearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      plugins.security.disabled: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-Magento123!}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - internal
+
+volumes:
+  mysql_data:
+  redis_data:
+  rabbitmq_data:
+  opensearch_data:
+
+networks:
+  public:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true
