@@ -5,7 +5,6 @@ cd /app
 
 # Colores para los logs
 GREEN='\033[0;32m'
-RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}Iniciando proceso de configuración de Magento...${NC}"
@@ -15,24 +14,23 @@ run_as_app() {
   sudo -u application php -d memory_limit=4G "$@"
 }
 
-# 1. Verificar si vendor o bin/magento existen. Si no, correr composer install.
-if [ ! -f "bin/magento" ]; then
-  echo -e "${GREEN}Magento no encontrado. Optimizando e instalando con Composer...${NC}"
-  # Configurar composer para descargas rápidas en paralelo
-  sudo -u application composer config -g parallelism 20 || true
-  
-  # Instalar dependencias con límites de memoria aumentados y sin progreso para ahorrar I/O
-  sudo -u application COMPOSER_MEMORY_LIMIT=-1 composer install \
-    --no-interaction \
-    --no-dev \
-    --prefer-dist \
-    --optimize-autoloader \
-    --no-progress
-else
-  echo -e "${GREEN}Dependencias de Composer ya presentes.${NC}"
+# 1. Sincronizar código si el volumen está vacío
+if [ ! -f "composer.json" ]; then
+  echo -e "${GREEN}El volumen /app está vacío. Sincronizando código desde /app_source...${NC}"
+  rsync -a /app_source/ /app/
+  chown -R application:application /app
+  echo -e "${GREEN}Sincronización completa.${NC}"
 fi
 
-# 2. Esperar servicios
+# 2. Verificar si bin/magento existe. Si no, correr composer install.
+if [ ! -f "bin/magento" ]; then
+  echo -e "${GREEN}Instalando dependencias con Composer...${NC}"
+  sudo -u application composer config -g parallelism 20 || true
+  sudo -u application COMPOSER_MEMORY_LIMIT=-1 composer install \
+    --no-interaction --no-dev --prefer-dist --optimize-autoloader --no-progress
+fi
+
+# 3. Esperar servicios
 wait_for_port() {
   local host="$1"
   local port="$2"
@@ -51,13 +49,13 @@ wait_for_port "redis" 6379 "Redis"
 wait_for_port "rabbitmq" 5672 "RabbitMQ"
 wait_for_port "${MAGENTO_OPENSEARCH_HOST:-opensearch}" "${MAGENTO_OPENSEARCH_PORT:-9200}" "OpenSearch"
 
-# 3. Ajustar permisos
-echo "Ajustando permisos iniciales..."
+# 4. Ajustar permisos
+echo "Ajustando permisos..."
 mkdir -p var generated pub/static pub/media vendor
-chown -R application:application var generated pub/static pub/media vendor bin
+chown -R application:application /app
 chmod -R 777 var generated pub/static pub/media
 
-# 4. Instalación o Upgrade
+# 5. Instalación o Upgrade
 if [ ! -f "app/etc/env.php" ]; then
   echo -e "${GREEN}Ejecutando setup:install...${NC}"
   run_as_app bin/magento setup:install \
@@ -90,7 +88,7 @@ else
   run_as_app bin/magento setup:upgrade
 fi
 
-# 5. Pasos finales
+# 6. Pasos finales
 echo -e "${GREEN}Compilando código y desplegando contenido estático...${NC}"
 run_as_app bin/magento setup:di:compile
 run_as_app bin/magento setup:static-content:deploy -f ${MAGENTO_LOCALES}
@@ -98,5 +96,5 @@ run_as_app bin/magento cron:install
 run_as_app bin/magento indexer:reindex
 run_as_app bin/magento cache:flush
 
-chown -R application:application var generated pub/static pub/media
+chown -R application:application /app
 echo -e "${GREEN}¡Inicialización de Magento finalizada con éxito!${NC}"

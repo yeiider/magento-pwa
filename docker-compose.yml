@@ -7,11 +7,7 @@ services:
     ports:
       - "8088:80"
     volumes:
-      - magento_bin:/app/bin
-      - magento_vendor:/app/vendor
-      - magento_var:/app/var
-      - magento_generated:/app/generated
-      - magento_static:/app/pub/static
+      - magento_code:/app
       - magento_media:/app/pub/media
     environment:
       WEB_DOCUMENT_ROOT: /app/pub
@@ -36,11 +32,7 @@ services:
     container_name: magento-setup
     restart: "no"
     volumes:
-      - magento_bin:/app/bin
-      - magento_vendor:/app/vendor
-      - magento_var:/app/var
-      - magento_generated:/app/generated
-      - magento_static:/app/pub/static
+      - magento_code:/app
       - magento_media:/app/pub/media
       - composer_cache:/home/application/.composer/cache
     environment:
@@ -83,11 +75,7 @@ services:
     container_name: magento-cron
     restart: unless-stopped
     volumes:
-      - magento_bin:/app/bin
-      - magento_vendor:/app/vendor
-      - magento_var:/app/var
-      - magento_generated:/app/generated
-      - magento_static:/app/pub/static
+      - magento_code:/app
       - magento_media:/app/pub/media
     command: cron -f
     environment:
@@ -176,11 +164,7 @@ volumes:
   redis_data:
   rabbitmq_data:
   opensearch_data:
-  magento_bin:
-  magento_vendor:
-  magento_var:
-  magento_generated:
-  magento_static:
+  magento_code:
   magento_media:
   composer_cache:
 
