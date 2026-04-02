@@ -20,13 +20,16 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Crear estructura de carpetas necesaria antes de copiar el código
+RUN mkdir -p /app/var /app/generated /app/pub/static /app/pub/media \
+    && chown -R application:application /app
+
 # Copiar el código del proyecto al contenedor
 COPY --chown=application:application . /app
 
 # Ajustar permisos para el usuario de la aplicación
-RUN chmod +x /app/docker/init-magento.sh \
-    && mkdir -p /app/var /app/generated /app/pub/static /app/pub/media \
-    && chown -R application:application /app/var /app/generated /app/pub/static /app/pub/media
+# (chmod se hará en tiempo de ejecución en docker-compose)
+RUN chown -R application:application /app/var /app/generated /app/pub/static /app/pub/media
 
 WORKDIR /app
 

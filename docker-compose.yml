@@ -59,7 +59,7 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-magento}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-magento}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
-    entrypoint: ["/bin/bash", "/app/docker/init-magento.sh"]
+    entrypoint: ["/bin/bash", "-c", "chmod +x /app/docker/init-magento.sh && /app/docker/init-magento.sh"]
     depends_on:
       db:
         condition: service_healthy
