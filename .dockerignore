@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+vendor/
+pub/static/*
+pub/media/*
+var/*
+generated/*
+# No ignorar la carpeta docker/
+!docker/
