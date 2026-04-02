@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: magento-go:latest
+    image: magento-app-goline:v1
     container_name: magento-app
     restart: unless-stopped
     ports:
@@ -30,8 +30,7 @@ services:
       - internal
 
   magento-setup:
-    build: .
-    image: magento-app-cooper:v1
+    image: magento-app-goline:v1
     container_name: magento-setup
     restart: "no"
     volumes:
@@ -74,8 +73,7 @@ services:
       - internal
 
   cron:
-    build: .
-    image: magento-app-cooper:v1
+    image: magento-app-goline:v1
     container_name: magento-cron
     restart: unless-stopped
     volumes:
