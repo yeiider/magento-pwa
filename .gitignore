@@ -7,6 +7,8 @@
 /.magento/local
 !/app/
 !/app/**
+/app/etc/env.php
+/app/etc/config.php
 !/.htaccess
 !/index.php
 !/pub/index.php
