@@ -22,15 +22,12 @@ if [ ! -f "composer.json" ]; then
   echo -e "${GREEN}Sincronización completa.${NC}"
 fi
 
-# 2. Verificar si existe la carpeta vendor/ y tiene contenido. Si no, correr composer install.
-# (Es más seguro que verificar solo bin/magento, ya que bin/magento puede estar en el Git)
+# 2. Verificar dependencias
 if [ ! -d "vendor" ] || [ -z "$(ls -A vendor 2>/dev/null)" ]; then
-  echo -e "${GREEN}Vendor no encontrado o vacío. Instalando dependencias con Composer...${NC}"
+  echo -e "${GREEN}Instalando dependencias con Composer...${NC}"
   sudo -u application composer config -g parallelism 20 || true
   sudo -u application COMPOSER_MEMORY_LIMIT=-1 composer install \
     --no-interaction --no-dev --prefer-dist --optimize-autoloader --no-progress
-else
-  echo -e "${GREEN}Dependencias de Composer ya presentes en vendor/.${NC}"
 fi
 
 # 3. Esperar servicios
@@ -59,14 +56,8 @@ chown -R application:application /app
 chmod -R 777 var generated pub/static pub/media
 
 # 5. Instalación o Upgrade
-# Si el binario de magento no existe todavía (raro pero posible), algo falló en composer
-if [ ! -f "bin/magento" ]; then
-    echo -e "${GREEN}ERROR: bin/magento no encontrado tras composer install. Reintentando...${NC}"
-    sudo -u application composer install --no-interaction
-fi
-
 if [ ! -f "app/etc/env.php" ]; then
-  echo -e "${GREEN}Ejecutando setup:install...${NC}"
+  echo -e "${GREEN}Ejecutando setup:install con SSL activado...${NC}"
   run_as_app bin/magento setup:install \
     --base-url="${MAGENTO_BASE_URL}" \
     --db-host="${MAGENTO_DB_HOST}" \
@@ -83,6 +74,9 @@ if [ ! -f "app/etc/env.php" ]; then
     --currency="${MAGENTO_CURRENCY}" \
     --timezone="${MAGENTO_TIMEZONE}" \
     --use-rewrites=1 \
+    --use-secure=1 \
+    --base-url-secure="${MAGENTO_BASE_URL}" \
+    --use-secure-admin=1 \
     --search-engine=opensearch \
     --opensearch-host="${MAGENTO_OPENSEARCH_HOST}" \
     --opensearch-port="${MAGENTO_OPENSEARCH_PORT}" \
@@ -93,7 +87,11 @@ if [ ! -f "app/etc/env.php" ]; then
     --amqp-virtualhost="${RABBITMQ_DEFAULT_VHOST}" \
     --cleanup-database
 else
-  echo -e "${GREEN}Magento ya instalado. Ejecutando setup:upgrade...${NC}"
+  echo -e "${GREEN}Magento ya instalado. Actualizando configuración de URL...${NC}"
+  run_as_app bin/magento config:set web/unsecure/base_url "${MAGENTO_BASE_URL}"
+  run_as_app bin/magento config:set web/secure/base_url "${MAGENTO_BASE_URL}"
+  run_as_app bin/magento config:set web/secure/use_in_frontend 1
+  run_as_app bin/magento config:set web/secure/use_in_adminhtml 1
   run_as_app bin/magento setup:upgrade
 fi
 
