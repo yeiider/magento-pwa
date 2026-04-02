@@ -31,9 +31,27 @@ services:
     restart: "no"
     volumes:
       - ./:/app:rw,cached
-    env_file: .env
     environment:
-      MAGENTO_DB_HOST: ${MAGENTO_DB_HOST}
+      MAGENTO_BASE_URL: ${MAGENTO_BASE_URL:-http://localhost:8088/}
+      MAGENTO_ADMIN_FIRSTNAME: ${MAGENTO_ADMIN_FIRSTNAME:-Admin}
+      MAGENTO_ADMIN_LASTNAME: ${MAGENTO_ADMIN_LASTNAME:-User}
+      MAGENTO_ADMIN_EMAIL: ${MAGENTO_ADMIN_EMAIL:-admin@example.com}
+      MAGENTO_ADMIN_USER: ${MAGENTO_ADMIN_USER:-admin}
+      MAGENTO_ADMIN_PASSWORD: ${MAGENTO_ADMIN_PASSWORD:-Admin123!}
+      MAGENTO_ADMIN_FRONTNAME: ${MAGENTO_ADMIN_FRONTNAME:-admin}
+      MAGENTO_LANGUAGE: ${MAGENTO_LANGUAGE:-es_CO}
+      MAGENTO_CURRENCY: ${MAGENTO_CURRENCY:-USD}
+      MAGENTO_TIMEZONE: ${MAGENTO_TIMEZONE:-America/Bogota}
+      MAGENTO_LOCALES: ${MAGENTO_LOCALES:-en_US es_ES es_CO}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-magento}
+      MYSQL_USER: ${MYSQL_USER:-magento}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-magento}
+      MAGENTO_DB_HOST: ${MAGENTO_DB_HOST:-db}
+      MAGENTO_OPENSEARCH_HOST: ${MAGENTO_OPENSEARCH_HOST:-opensearch}
+      MAGENTO_OPENSEARCH_PORT: ${MAGENTO_OPENSEARCH_PORT:-9200}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-magento}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-magento}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
     entrypoint: ["/bin/bash", "/app/docker/init-magento.sh"]
     depends_on:
       db:
@@ -70,14 +88,14 @@ services:
     restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password --log-bin-trust-function-creators=1
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-magento}
+      MYSQL_USER: ${MYSQL_USER:-magento}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-magento}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${MYSQL_USER} -p${MYSQL_PASSWORD} || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${MYSQL_USER:-magento} -p${MYSQL_PASSWORD:-magento} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -99,9 +117,9 @@ services:
     container_name: magento-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-magento}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-magento}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
